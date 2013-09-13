@@ -1,0 +1,54 @@
+0: kd> r
+eax=fe448260 ebx=63737355 ecx=00000018 edx=00000031 esi=000001ff edi=fe448260
+eip=8290d6f3 esp=891ef9e4 ebp=891efa44 iopl=0         nv up ei pl nz na po nc
+cs=0008  ss=0010  ds=0023  es=0023  fs=0030  gs=0000             efl=00000202
+nt!ExpReleasePoolQuota:
+8290d6f3 8bff            mov     edi,edi
+
+EAX = pool header
+
+0: kd> kd
+891ef9e0  00000202
+891ef9e4  82976234 nt!ExFreePoolWithTag+0x779
+891ef9e8  00000008
+891ef9ec  fdff7180
+891ef9f0  00000000
+
+0: kd> dt _POOL_HEADER fe448260
+nt!_POOL_HEADER
+   +0x000 PreviousSize     : 0y001001100 (0x4c)
+   +0x000 PoolIndex        : 0y0000000 (0)
+   +0x002 BlockSize        : 0y000000011 (0x3)
+   +0x002 PoolType         : 0y0101101 (0x2d)
+   +0x000 Ulong1           : 0x5a03004c
+   +0x004 PoolTag          : 0x63737355
+   +0x004 AllocatorBackTraceIndex : 0x7355
+   +0x006 PoolTagHash      : 0x6373
+
+nt!ExpReleasePoolQuota:
+829006f3 8bff            mov     edi,edi
+829006f5 51              push    ecx
+829006f6 56              push    esi
+829006f7 8bf0            mov     esi,eax
+829006f9 0fb74602        movzx   eax,word ptr [esi+2]   ; PoolHeader Blocksize and PoolType
+829006fd 57              push    edi        
+829006fe a900100000      test    eax,1000h
+82900703 744e            je      nt!ExpReleasePoolQuota+0x5f (82900753)     ; jmp if Blocksize and PoolType == 0x1000 NonPagedPoolSession???
+82900705 b9ff010000      mov     ecx,1FFh                                   ; 0x1FF Get last 9 bits of 16 bit int
+8290070a 23c1            and     eax,ecx                                    ; Get Blocksize -> 3
+8290070c 8b7cc6fc        mov     edi,dword ptr [esi+eax*8-4]                ; Our Userland EPROCESS struct (0x2100000 etc)
+82900710 85ff            test    edi,edi                                    ; Check for NULL
+82900712 743f            je      nt!ExpReleasePoolQuota+0x5f (82900753)     ; Branch if pointer is NULL
+82900714 8a07            mov     al,byte ptr [edi]                          
+82900716 247f            and     al,7Fh                                     ;
+82900718 3c03            cmp     al,3                                       ; 
+8290071a 7415            je      nt!ExpReleasePoolQuota+0x3d (82900731)     ; jmp if EPROCESS->DISPATCHER_HEADER->TYPE is 3?
+8290071c 57              push    edi                                        ;
+8290071d ff7604          push    dword ptr [esi+4]                          ;
+82900720 83c608          add     esi,8
+82900723 56              push    esi
+82900724 6a0d            push    0Dh
+82900726 68c2000000      push    0C2h
+8290072b e84a570200      call    nt!KeBugCheckEx (82925e7a)
+82900730 cc              int     3
+82900731 0fb74602        movzx   eax,word ptr [esi+2]
